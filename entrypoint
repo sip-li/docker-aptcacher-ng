@@ -1,0 +1,74 @@
+#!/bin/bash
+
+set -e
+
+. ~/.bashrc
+
+: ${APTCACHER_PORT:=3142}
+: ${APTCACHER_BIND_ADDR:=0.0.0.0}
+: ${APTCACHER_EXPIRE_THRESHOLD:=4}
+
+# 0: No debug printing
+# 1: Log file buffers are flushed faster
+# 2: Some additional information appears within usual transfer/error logs
+# 4: extra debug information is written to apt-cacher.err 
+#       (also enables lots of additional trace points when apt-cacher-ng 
+#        binary is built with debug configuration)
+: ${APTCACHER_LOG_LEVEL:=2}
+
+app=apt-cacher-ng
+user=$app
+
+
+echo "Sourcing /etc/default/apt-cacher-ng ..."
+if [ -f /etc/default/apt-cacher-ng ] ; then
+    . /etc/default/apt-cacher-ng
+fi
+
+
+echo "Cleaning contents of /var/run/aptcacher-ng ..."
+rm -rf /var/run/apt-cacher-ng || true
+
+
+echo "Rewriting configuration ..."
+sed -ir "/^Port:/s/:\(.*\)$/:$APTCACHER_PORT/" /etc/apt-cacher-ng/acng.conf
+
+sed -ir "/BindAddress:/s/^.*$/BindAddress: $APTCACHER_BIND_ADDR/" /etc/apt-cacher-ng/acng.conf
+
+sed -ir "/ExTresold/s/:.*$/: $APTCACHER_EXPIRE_THRESHOLD/" /etc/apt-cacher-ng/acng.conf
+
+sed -ir "/Debug:/s/^# \(.*\)$/\1/;/Debug:/s/:.*$/: $APTCACHER_LOG_LEVEL/" /etc/apt-cacher-ng/acng.conf
+
+
+echo "Creating directories ..."
+mkdir -p \
+    /run/apt-cacher-ng \
+    /var/cache/apt-cacher-ng \
+    /var/log/apt-cacher-ng
+
+
+echo "Setting permissions ..."
+chown $user:$user \
+    /run/apt-cacher-ng \
+    /var/cache/apt-cacher-ng
+
+chown -R $user:root /var/log/apt-cacher-ng
+
+chmod -R 0755 \
+    /run/apt-cacher-ng \
+    /var/cache/apt-cacher-ng \
+    /var/log/apt-cacher-ng
+
+
+echo "Setting up logging ..."
+ln -sf /dev/stdout /var/log/apt-cacher-ng/apt-cacher.err
+ln -sf /dev/stdout /var/log/apt-cacher-ng/apt-cacher.log
+
+chown -R $user:$user /var/log/apt-cacher-ng
+
+echo "Setting up files ..."
+install -d --mode=0755 -o $user -g $user /var/run/apt-cacher-ng || true
+
+
+# exec gosu $user /usr/sbin/apt-cacher-ng $DAEMON_OPTS $EXTRA_ACNG_OPTS
+exec /usr/sbin/apt-cacher-ng $DAEMON_OPTS $EXTRA_ACNG_OPTS
