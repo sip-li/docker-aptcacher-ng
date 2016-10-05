@@ -1,12 +1,14 @@
-#!/bin/bash
+#!/bin/bash -l
 
 set -e
 
-. ~/.bashrc
+app=apt-cacher-ng
+user=$app
 
 : ${APTCACHER_PORT:=3142}
 : ${APTCACHER_BIND_ADDR:=0.0.0.0}
 : ${APTCACHER_EXPIRE_THRESHOLD:=4}
+: ${APTCACHER_ENABLE_TLS_PASSTHROUGH:=false}
 
 # 0: No debug printing
 # 1: Log file buffers are flushed faster
@@ -15,9 +17,6 @@ set -e
 #       (also enables lots of additional trace points when apt-cacher-ng 
 #        binary is built with debug configuration)
 : ${APTCACHER_LOG_LEVEL:=2}
-
-app=apt-cacher-ng
-user=$app
 
 
 echo "Sourcing /etc/default/apt-cacher-ng ..."
@@ -40,23 +39,32 @@ sed -ir "/ExTresold/s/:.*$/: $APTCACHER_EXPIRE_THRESHOLD/" /etc/apt-cacher-ng/ac
 sed -ir "/Debug:/s/^# \(.*\)$/\1/;/Debug:/s/:.*$/: $APTCACHER_LOG_LEVEL/" /etc/apt-cacher-ng/acng.conf
 
 
+if [[ $APTCACHER_ENABLE_TLS_PASSTHROUGH = true ]]
+then
+    if ! grep '^PassThroughPattern' --silent /etc/apt-cacher-ng/acng.conf
+    then
+        echo "Enabling tls passthrough ..."
+        echo 'PassThroughPattern: .*' >> /etc/apt-cacher-ng/acng.conf
+    fi
+fi
+
+
 echo "Creating directories ..."
 mkdir -p \
     /run/apt-cacher-ng \
-    /var/cache/apt-cacher-ng \
     /var/log/apt-cacher-ng
 
 
 echo "Setting permissions ..."
-chown $user:$user \
-    /run/apt-cacher-ng \
-    /var/cache/apt-cacher-ng
+chown -R $user:$user \
+    /var/cache/apt-cacher-ng \
+    /run/apt-cacher-ng 
 
 chown -R $user:root /var/log/apt-cacher-ng
 
 chmod -R 0755 \
-    /run/apt-cacher-ng \
     /var/cache/apt-cacher-ng \
+    /run/apt-cacher-ng \
     /var/log/apt-cacher-ng
 
 
@@ -70,5 +78,5 @@ echo "Setting up files ..."
 install -d --mode=0755 -o $user -g $user /var/run/apt-cacher-ng || true
 
 
-# exec gosu $user /usr/sbin/apt-cacher-ng $DAEMON_OPTS $EXTRA_ACNG_OPTS
-exec /usr/sbin/apt-cacher-ng $DAEMON_OPTS $EXTRA_ACNG_OPTS
+echo "Staring $app ..."
+exec apt-cacher-ng $DAEMON_OPTS $EXTRA_ACNG_OPTS

@@ -1,18 +1,16 @@
-FROM    callforamerica/debian:jessie
+FROM    callforamerica/debian
 
 MAINTAINER joe <joe@valuphone.com>
 
-RUN     useradd \
-            --home-dir /var/cache/apt-cacher-ng \
-            --create-home \
-            --shell=/bin/bash \
-            --user-group apt-cacher-ng
+LABEL   app.name="aptcacher-ng" \
+        app.version="0.8.0"
 
-RUN     apt-get update && \
-            apt-get install -y apt-cacher-ng && \
-            apt-clean --aggressive
+LABEL   APTCACHER_NG_VERSION=0.8.0
 
-RUN     sed -ir 's/# ForeGround: 0/ForeGround: 1/' /etc/apt-cacher-ng/acng.conf 
+ENV     HOME=/opt/apt-cacher-ng
+
+COPY    build.sh /tmp/build.sh
+RUN     /tmp/build.sh
 
 COPY    entrypoint /entrypoint
 
@@ -24,7 +22,6 @@ ENV     APTCACHER_PORT=3142 \
         APTCACHER_BIND_ADDR=0.0.0.0 \
         APTCACHER_EXPIRE_THRESHOLD=4
 
-# USER    apt-cacher-ng
 WORKDIR     /var/cache/apt-cacher-ng
 
 ENTRYPOINT  ["/dumb-init", "--"]
