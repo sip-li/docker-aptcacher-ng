@@ -2,17 +2,18 @@ FROM    callforamerica/debian
 
 MAINTAINER joe <joe@valuphone.com>
 
-LABEL   app.name="aptcacher-ng" \
-        app.version="0.8.0"
+ARG     APTCACHER_NG_VERSION
 
-LABEL   APTCACHER_NG_VERSION=0.8.0
+ENV     APTCACHER_NG_VERSION=${APTCACHER_NG_VERSION:-0.8.0}
+
+LABEL   app.aptcacher-ng.version=$APTCACHER_NG_VERSION
 
 ENV     HOME=/opt/apt-cacher-ng
 
-COPY    build.sh /tmp/build.sh
+COPY    build.sh /tmp/
 RUN     /tmp/build.sh
 
-COPY    entrypoint /entrypoint
+COPY    entrypoint /
 
 VOLUME  ["/var/cache/apt-cacher-ng"]
 

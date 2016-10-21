@@ -22,3 +22,4 @@ echo "Cleaning up ..."
 apt-clean --aggressive
 
 rm -r -- "$0"
+

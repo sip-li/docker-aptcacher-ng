@@ -5,10 +5,15 @@ set -e
 app=apt-cacher-ng
 user=$app
 
+if [ -f /etc/default/apt-cacher-ng ] ; then
+    . /etc/default/apt-cacher-ng
+fi
+
 : ${APTCACHER_PORT:=3142}
 : ${APTCACHER_BIND_ADDR:=0.0.0.0}
 : ${APTCACHER_EXPIRE_THRESHOLD:=4}
-: ${APTCACHER_ENABLE_TLS_PASSTHROUGH:=false}
+: ${APTCACHER_ENABLE_PASSTHROUGH:=false}
+: ${APTCACHER_PASSTHROUGH_MATCH_LIST:=}
 
 # 0: No debug printing
 # 1: Log file buffers are flushed faster
@@ -19,10 +24,11 @@ user=$app
 : ${APTCACHER_LOG_LEVEL:=2}
 
 
-echo "Sourcing /etc/default/apt-cacher-ng ..."
-if [ -f /etc/default/apt-cacher-ng ] ; then
-    . /etc/default/apt-cacher-ng
-fi
+function log 
+{
+    local msg="$1"
+    echo -e "\E[36m[*]\E[0m ${msg}" 
+}
 
 
 echo "Cleaning contents of /var/run/aptcacher-ng ..."
@@ -39,12 +45,12 @@ sed -ir "/ExTresold/s/:.*$/: $APTCACHER_EXPIRE_THRESHOLD/" /etc/apt-cacher-ng/ac
 sed -ir "/Debug:/s/^# \(.*\)$/\1/;/Debug:/s/:.*$/: $APTCACHER_LOG_LEVEL/" /etc/apt-cacher-ng/acng.conf
 
 
-if [[ $APTCACHER_ENABLE_TLS_PASSTHROUGH = true ]]
+if [[ $APTCACHER_ENABLE_PASSTHROUGH = true ]]
 then
     if ! grep '^PassThroughPattern' --silent /etc/apt-cacher-ng/acng.conf
     then
         echo "Enabling tls passthrough ..."
-        echo 'PassThroughPattern: .*' >> /etc/apt-cacher-ng/acng.conf
+        echo "PassThroughPattern: .*(${APTCACHER_PASSTHROUGH_MATCH_LIST//,/|}).*" >> /etc/apt-cacher-ng/acng.conf
     fi
 fi
 

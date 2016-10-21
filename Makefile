@@ -7,7 +7,7 @@ LOCAL_TAG = $(NS)/$(NAME):$(VERSION)
 
 REGISTRY = callforamerica
 ORG = vp
-REMOTE_TAG = $(REGISTRY)/$(NAME):$(VERSION)
+REMOTE_TAG = $(REGISTRY)/$(NAME)
 
 GITHUB_REPO = docker-aptcacher-ng
 DOCKER_REPO = aptcacher-ng
@@ -24,6 +24,7 @@ checkout:
 build:
 	@docker build -t $(LOCAL_TAG) --rm .
 	@$(MAKE) tag
+	@-docker images -f dangling=true -q | xargs
 
 tag:
 	@docker tag $(LOCAL_TAG) $(REMOTE_TAG)
@@ -48,13 +49,16 @@ run:
 	@docker run -it --rm --name $(NAME) -h $(NAME).local $(LOCAL_TAG) bash
 
 launch:
-	@docker run -d --name $(NAME) -p "3142:3142" $(LOCAL_TAG)
+	@docker run -d --name $(NAME) --env-file default.env -p "3142:3142" $(LOCAL_TAG)
 
 launch-net:
-	@docker run -d --name $(NAME) -p "3142:3142" --network=local $(LOCAL_TAG)
+	@docker run -d --name $(NAME) --env-file default.env -p "3142:3142" --network=local $(LOCAL_TAG)
 
 launch-persist:
-	@docker run -d --name $(NAME) -v "$(shell pwd)/data:/var/cache/apt-cacher-ng" -p "3142:3142" $(LOCAL_TAG)
+	@docker run -d --name $(NAME) --env-file default.env -v "$(shell pwd)/data:/var/cache/apt-cacher-ng" -p "3142:3142" $(LOCAL_TAG)
+
+remote-persist:
+	@docker run -d --name $(NAME) --env-file default.env -v "$(shell pwd)/data:/var/cache/apt-cacher-ng" -p "3142:3142" $(REMOTE_TAG)
 
 create-network:
 	@docker network create -d bridge local
